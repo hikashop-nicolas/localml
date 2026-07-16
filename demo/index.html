@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>localml demo</title>
+    <style>
+      html, body { margin: 0; font-family: system-ui, sans-serif; color: #1a1a1a; }
+      body { padding: 16px; max-width: 900px; margin: 0 auto; }
+      h1 { font-size: 18px; }
+      section { border: 1px solid #e4e6eb; border-radius: 10px; padding: 14px; margin: 14px 0; }
+      h2 { font-size: 15px; margin: 0 0 10px; }
+      input, textarea, select, button { font: inherit; }
+      textarea { width: 100%; box-sizing: border-box; min-height: 60px; }
+      button { padding: 6px 14px; border-radius: 7px; border: 1px solid #d5d8dc; background: #f5f6f7; cursor: pointer; }
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+      .out { white-space: pre-wrap; background: #f7f8f9; border-radius: 7px; padding: 10px; min-height: 20px; }
+      .prog { color: #667; font-size: 13px; }
+      canvas { border: 1px solid #eee; max-width: 100%; }
+    </style>
+  </head>
+  <body>
+    <h1>localml — on-device OCR + translation</h1>
+
+    <section>
+      <h2>OCR (Tesseract.js)</h2>
+      <div class="row">
+        <input id="ocrtext" value="Hello OCR 12345" size="30" />
+        <button id="ocrrender">Render text &amp; recognize</button>
+      </div>
+      <div class="row">
+        <label>…or an image file <input id="ocrfile" type="file" accept="image/*" /></label>
+        <select id="ocrlang"><option value="eng">English</option><option value="fra">Français</option><option value="jpn">日本語</option></select>
+      </div>
+      <canvas id="ocrcanvas" width="520" height="120"></canvas>
+      <div class="prog" id="ocrprog"></div>
+      <div class="out" id="ocrout"></div>
+    </section>
+
+    <section>
+      <h2>Translate (transformers.js)</h2>
+      <div class="row">
+        <textarea id="tsrc">Bonjour le monde. Comment allez-vous aujourd'hui ?</textarea>
+      </div>
+      <div class="row">
+        from <select id="tfrom"></select>
+        to <select id="tto"></select>
+        <select id="tmodel"></select>
+        <button id="tgo">Translate</button>
+      </div>
+      <div class="prog" id="tprog"></div>
+      <div class="out" id="tout"></div>
+    </section>
+
+    <script type="module" src="./demo.ts"></script>
+  </body>
+</html>
