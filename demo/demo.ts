@@ -1,5 +1,6 @@
 import { runOcr } from "../src/ocr";
 import { runTranslate, TRANSLATE_LANGS, TRANSLATE_MODELS, DEFAULT_TRANSLATE_MODEL } from "../src/translate";
+import { runGenerate, type GenTask } from "../src/generate";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -79,4 +80,24 @@ $("tgo").addEventListener("click", () => {
     },
   );
   void run.done.then(() => (tProg.textContent = "done"));
+});
+
+// ---- Generate ----
+const gTask = $<HTMLSelectElement>("gtask");
+$("ggo").addEventListener("click", () => {
+  const gProg = $("gprog");
+  const gOut = $("gout");
+  gOut.textContent = "";
+  gProg.textContent = "starting…";
+  const run = runGenerate(
+    $<HTMLTextAreaElement>("gsrc").value,
+    { task: gTask.value as GenTask },
+    {
+      onProgress: (p) =>
+        (gProg.textContent = p.stage === "download" ? `downloading ${Math.round(p.ratio * 100)}%` : "generating…"),
+      onPartial: (text) => (gOut.textContent = text),
+      onDevice: (d) => (gProg.textContent = `running on ${d}…`),
+    },
+  );
+  void run.done.then((r) => (gProg.textContent = `done (${r.text.length} chars)`)).catch((e) => (gProg.textContent = `error: ${e.message}`));
 });

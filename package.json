@@ -12,6 +12,10 @@
     "./translate": {
       "types": "./dist/translate.d.ts",
       "import": "./dist/translate.js"
+    },
+    "./generate": {
+      "types": "./dist/generate.d.ts",
+      "import": "./dist/generate.js"
     }
   },
   "files": [

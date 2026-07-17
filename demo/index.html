@@ -52,6 +52,24 @@
       <div class="out" id="tout"></div>
     </section>
 
+    <section>
+      <h2>Generate (transformers.js)</h2>
+      <div class="row">
+        <textarea id="gsrc">The cell is the basic structural and functional unit of all living organisms. It carries out the processes of life.</textarea>
+      </div>
+      <div class="row">
+        <select id="gtask">
+          <option value="summarize">Summarize</option>
+          <option value="elaborate">Elaborate</option>
+          <option value="shorten">Shorten</option>
+          <option value="write">Write (input = instruction)</option>
+        </select>
+        <button id="ggo">Run</button>
+      </div>
+      <div class="prog" id="gprog"></div>
+      <div class="out" id="gout"></div>
+    </section>
+
     <script type="module" src="./demo.ts"></script>
   </body>
 </html>
