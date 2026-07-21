@@ -19,6 +19,9 @@ export interface GenerateOptions {
   task: GenTask;
   /** Override the default model for the task. */
   model?: string;
+  /** A domain-specific system prompt for the chat tasks (overrides the task default), so a
+      consumer can specialise (e.g. a spreadsheet-formula assistant) without a new task. */
+  system?: string;
   /** Force a backend; omit to auto-detect (WebGPU, else WASM). */
   device?: "webgpu" | "wasm";
 }
@@ -84,6 +87,7 @@ export function runGenerate(input: string, opts: GenerateOptions, cb: GenerateCa
     type: "run",
     task: opts.task,
     input,
+    system: opts.system,
     model,
     engine,
     device: opts.device,

@@ -38,6 +38,12 @@ describe("buildMessages", () => {
     expect(sys("write")).toContain("writing assistant");
     expect(sys("elaborate")).not.toBe(sys("shorten"));
   });
+
+  it("lets a caller override the system prompt (domain specialisation)", () => {
+    const msgs = buildMessages("write", "sum column B", "You write spreadsheet formulas.");
+    expect(msgs[0]).toEqual({ role: "system", content: "You write spreadsheet formulas." });
+    expect(msgs[1]).toEqual({ role: "user", content: "sum column B" });
+  });
 });
 
 describe("capFor", () => {

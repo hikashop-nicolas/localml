@@ -54,7 +54,10 @@ export interface ChatMessage {
 // Task -> chat prompt. Each keeps the model on a tight leash: reply with only the result, in
 // the same language as the input (Qwen is multilingual). `input` is the selected text for
 // elaborate/shorten and the user's instruction for write.
-export function buildMessages(task: GenTask, input: string): ChatMessage[] {
+// `system` lets a consumer supply a domain-specific system prompt (e.g. a spreadsheet-
+// formula assistant) without localml having to know that domain; it overrides the task
+// default. The task still drives the token budget (capFor).
+export function buildMessages(task: GenTask, input: string, system?: string): ChatMessage[] {
   const sys: Record<Exclude<GenTask, "summarize">, string> = {
     elaborate:
       "You expand the user's text, adding relevant detail and depth while keeping its meaning, tone and language. Reply with only the expanded text, no preamble.",
@@ -64,7 +67,7 @@ export function buildMessages(task: GenTask, input: string): ChatMessage[] {
       "You are a concise writing assistant. Write exactly what the user asks for, in their language. Reply with only the requested text, no preamble.",
   };
   return [
-    { role: "system", content: sys[task as Exclude<GenTask, "summarize">] },
+    { role: "system", content: system ?? sys[task as Exclude<GenTask, "summarize">] },
     { role: "user", content: input },
   ];
 }

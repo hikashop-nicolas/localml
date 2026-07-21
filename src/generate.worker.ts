@@ -11,6 +11,7 @@ interface RunMsg {
   type: "run";
   task: GenTask;
   input: string;
+  system?: string;
   model: string;
   engine: "summarization" | "chat";
   device?: "webgpu" | "wasm";
@@ -84,7 +85,7 @@ onMessage(async (e: MessageEvent) => {
         post({ type: "partial", text: acc });
       }
     } else {
-      const messages = buildMessages(run.task, run.input);
+      const messages = buildMessages(run.task, run.input, run.system);
       const out = (await pipe(messages, {
         max_new_tokens: cap,
         streamer,
