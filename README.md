@@ -2,8 +2,10 @@
 
 Shared **on-device** (in-browser) machine learning for text, used by
 [imageview](https://github.com/hikashop-nicolas/imageview) and
-[subedit](https://github.com/hikashop-nicolas/subedit). Everything runs on the user's
-machine, no server. Two independent entry points, each loading its engine on demand:
+[subedit](https://github.com/hikashop-nicolas/subedit), and through them by
+**[Omnitext](https://hikashop-nicolas.github.io/omnitext/)**, a free browser editor for
+practically any file. Everything runs on the user's machine, no server. Two independent
+entry points, each loading its engine on demand:
 
 - `localml/ocr` : OCR via [Tesseract.js](https://github.com/naptha/tesseract.js/). Tesseract
   runs its own WASM worker and fetches its core + language data from a CDN on first use
