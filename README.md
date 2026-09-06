@@ -14,6 +14,9 @@ entry points, each loading its engine on demand:
   (m2m100-418M or NLLB-200-distilled-600M), in a worker, WebGPU with a WASM (CPU) fallback.
   Models download from the Hugging Face CDN on first use and are cached.
 
+**[▶ Live demo](https://hikashop-nicolas.github.io/localml/)** — run OCR and translation on
+your own text, on your own machine.
+
 ## Usage
 
 ### OCR
