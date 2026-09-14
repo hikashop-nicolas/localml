@@ -36,9 +36,7 @@ async function gpuHasF16(): Promise<boolean> {
 }
 
 async function getPipe(engine: "summarization" | "chat", model: string, device: "webgpu" | "wasm", dtypeSpec?: { webgpu: DtypeSpec; wasm: DtypeSpec }): Promise<Pipe> {
-  const info = genModel(model);
-  let dtype: DtypeSpec = dtypeSpec ? dtypeSpec[device] : "q8";
-  if (device === "webgpu" && info?.webgpuNoF16 && !(await gpuHasF16())) dtype = info.webgpuNoF16;
+  const dtype: DtypeSpec = dtypeSpec ? dtypeSpec[device] : "q8";
   const key = `${engine}:${model}@${device}:${JSON.stringify(dtype)}`;
   if (cached && cached.key === key) return cached.fn;
   const options = { device, dtype, progress_callback: downloadProgress() };
@@ -124,7 +122,10 @@ onMessage(async (e: MessageEvent) => {
   };
 
   try {
-    const device: "webgpu" | "wasm" = run.device ?? ((await hasWebGpu()) ? "webgpu" : "wasm");
+    let device: "webgpu" | "wasm" = run.device ?? ((await hasWebGpu()) ? "webgpu" : "wasm");
+    // A model that needs f16 shaders skips a GPU without them: on the phones tested it loaded and
+    // then lost the device part way through, after downloading the model for nothing.
+    if (!run.device && device === "webgpu" && genModel(run.model)?.needsF16 && !(await gpuHasF16())) device = "wasm";
     // One backend per worker. A GPU that fails leaves onnxruntime unusable in this worker, so the
     // driver (generate.ts) retries on the CPU in a fresh one rather than here.
     const text = await runOn(device);

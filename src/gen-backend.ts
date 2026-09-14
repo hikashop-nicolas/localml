@@ -19,8 +19,9 @@ export interface GenModelInfo {
   /** Which transformers.js pipeline the worker builds for this model. */
   engine: "summarization" | "chat";
   dtype: { webgpu: DtypeSpec; wasm: DtypeSpec };
-  /** The dtype on a GPU without shader-f16 (many phones), where an f16 build cannot run. */
-  webgpuNoF16?: DtypeSpec;
+  /** Only run on a GPU with shader-f16. Phone GPUs without it also tend to lose the device on a
+      model this size, so they go straight to `wasmFallback` instead of downloading both. */
+  needsF16?: boolean;
   /** The model to run instead where only WASM is available: this one's quantized embeddings need WebGPU. */
   wasmFallback?: string;
 }
@@ -34,7 +35,7 @@ export const GEN_MODELS: GenModelInfo[] = [
   { id: "Xenova/distilbart-cnn-6-6", label: "DistilBART", sizeMb: 150, engine: "summarization", dtype: { webgpu: "q8", wasm: "q8" } },
   {
     id: "onnx-community/Qwen3.5-0.8B-Text-ONNX", label: "Qwen3.5 0.8B", sizeMb: 470, engine: "chat",
-    dtype: { webgpu: "q4f16", wasm: "q4" }, webgpuNoF16: "q4", wasmFallback: "onnx-community/Qwen2.5-0.5B-Instruct",
+    dtype: { webgpu: "q4f16", wasm: "q4" }, needsF16: true, wasmFallback: "onnx-community/Qwen2.5-0.5B-Instruct",
   },
   { id: "onnx-community/Qwen2.5-0.5B-Instruct", label: "Qwen2.5 0.5B", sizeMb: 550, engine: "chat", dtype: { webgpu: "q8", wasm: "q8" } },
 ];

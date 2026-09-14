@@ -23,7 +23,9 @@ describe("gen-backend catalog", () => {
       expect(fallback!.engine).toBe(m.engine);
       expect(fallback!.wasmFallback).toBeUndefined(); // one hop, never a chain
     }
-    expect(genModel(TASK_MODEL.shorten)?.webgpuNoF16).toBeTruthy(); // phones without f16 shaders
+    // A GPU without f16 shaders (most phones) is sent to the fallback rather than to this model.
+    expect(genModel(TASK_MODEL.shorten)?.needsF16).toBe(true);
+    expect(genModel(TASK_MODEL.shorten)?.wasmFallback).toBeTruthy();
   });
 
   it("declares a webgpu and wasm dtype for every model", () => {
