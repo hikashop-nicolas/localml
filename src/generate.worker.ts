@@ -125,18 +125,9 @@ onMessage(async (e: MessageEvent) => {
 
   try {
     const device: "webgpu" | "wasm" = run.device ?? ((await hasWebGpu()) ? "webgpu" : "wasm");
-    let text: string;
-    try {
-      text = await runOn(device);
-    } catch (gpuErr) {
-      if (device !== "webgpu") throw gpuErr;
-      // The GPU failed, loading or part way through (a phone GPU can load a model and then lose
-      // its buffers on the first run): drop what streamed and do the whole task on the CPU.
-      console.warn("[localml] WebGPU generation failed, finishing on the CPU", gpuErr);
-      cached = null;
-      post({ type: "partial", text: "" });
-      text = await runOn("wasm");
-    }
+    // One backend per worker. A GPU that fails leaves onnxruntime unusable in this worker, so the
+    // driver (generate.ts) retries on the CPU in a fresh one rather than here.
+    const text = await runOn(device);
     // Only the answer belongs in the document, not the wrapping a small model adds around it.
     post({ type: "done", text: run.engine === "chat" ? cleanReply(text) : text.trim() });
   } catch (err) {

@@ -45,60 +45,77 @@ export function runGenerate(input: string, opts: GenerateOptions, cb: GenerateCa
   const model = opts.model ?? TASK_MODEL[opts.task];
   const info = genModel(model);
   const engine = info?.engine ?? "chat";
-  const worker = new Worker(new URL("./generate.worker.ts", import.meta.url), { type: "module" });
 
+  let worker: Worker | null = null;
   let last = "";
   let settled = false;
 
   const done = new Promise<{ text: string; stopped: boolean }>((resolve, reject) => {
-    worker.onmessage = (e: MessageEvent) => {
-      const m = e.data;
-      switch (m.type) {
-        case "progress":
-          cb.onProgress?.({ stage: m.stage, ratio: m.ratio, file: m.file });
-          break;
-        case "partial":
-          last = m.text;
-          cb.onPartial?.(m.text);
-          break;
-        case "device":
-          cb.onDevice?.(m.device);
-          break;
-        case "done":
-          settled = true;
-          resolve({ text: (m.text ?? last) as string, stopped: false });
-          worker.terminate();
-          break;
-        case "error":
-          settled = true;
-          reject(new Error(m.message));
-          worker.terminate();
-          break;
-      }
+    /** One attempt in its own worker; `device` undefined lets the worker pick WebGPU when it can. */
+    const attempt = (device: "webgpu" | "wasm" | undefined): void => {
+      const w = new Worker(new URL("./generate.worker.ts", import.meta.url), { type: "module" });
+      worker = w;
+      let ranOn: "webgpu" | "wasm" | undefined;
+      const fail = (message: string): void => {
+        w.terminate();
+        if (settled) return;
+        // A GPU that fails, while loading or part way through (a phone short of memory loses its
+        // device), leaves that worker unusable. Start over on the CPU in a fresh one, unless the
+        // caller chose the backend or the CPU is what just failed.
+        if (!opts.device && ranOn !== "wasm" && device !== "wasm") {
+          console.warn("[localml] generation failed on WebGPU, retrying on the CPU:", message);
+          last = "";
+          cb.onPartial?.("");
+          attempt("wasm");
+          return;
+        }
+        settled = true;
+        reject(new Error(message));
+      };
+      w.onmessage = (e: MessageEvent) => {
+        const m = e.data;
+        switch (m.type) {
+          case "progress":
+            cb.onProgress?.({ stage: m.stage, ratio: m.ratio, file: m.file });
+            break;
+          case "partial":
+            last = m.text;
+            cb.onPartial?.(m.text);
+            break;
+          case "device":
+            ranOn = m.device;
+            cb.onDevice?.(m.device);
+            break;
+          case "done":
+            settled = true;
+            resolve({ text: (m.text ?? last) as string, stopped: false });
+            w.terminate();
+            break;
+          case "error":
+            fail(m.message);
+            break;
+        }
+      };
+      w.onerror = (e) => fail(e.message || "worker error");
+      w.postMessage({
+        type: "run",
+        task: opts.task,
+        input,
+        system: opts.system,
+        model,
+        engine,
+        device: device ?? opts.device,
+        dtype: info?.dtype,
+      });
     };
-    worker.onerror = (e) => {
-      settled = true;
-      reject(new Error(e.message || "worker error"));
-      worker.terminate();
-    };
-  });
-
-  worker.postMessage({
-    type: "run",
-    task: opts.task,
-    input,
-    system: opts.system,
-    model,
-    engine,
-    device: opts.device,
-    dtype: info?.dtype,
+    attempt(undefined);
   });
 
   return {
     cancel: () => {
       if (!settled) {
         settled = true;
-        worker.terminate();
+        (worker as Worker | null)?.terminate();
       }
     },
     done,
