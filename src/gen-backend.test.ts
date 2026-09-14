@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GEN_MODELS, TASK_MODEL, approxTokens, buildMessages, capFor, cleanReply, genModel } from "./gen-backend";
+import { GEN_MODELS, PROMPTS, TASK_MODEL, approxTokens, buildMessages, capFor, cleanReply, detectLanguage, genModel } from "./gen-backend";
 
 describe("gen-backend catalog", () => {
   it("maps every task to a model that exists in the catalog", () => {
@@ -64,6 +64,42 @@ describe("buildMessages", () => {
     const msgs = buildMessages("write", "sum column B", "You write spreadsheet formulas.");
     expect(msgs[0]).toEqual({ role: "system", content: "You write spreadsheet formulas." });
     expect(msgs[1]).toEqual({ role: "user", content: "sum column B" });
+  });
+});
+
+describe("prompts in the passage's language", () => {
+  const SAMPLES: [string, string][] = [
+    ["en", "Thanks for getting back to me so quickly. I checked the invoice and it is right, except for the date."],
+    ["fr", "Nous avons bien reçu votre demande et nous l'avons transmise à l'équipe technique, qui reviendra vers vous."],
+    ["es", "Hemos recibido su solicitud y la hemos enviado al equipo técnico, que le responderá antes del viernes."],
+    ["de", "Wir haben Ihre Anfrage erhalten und an das technische Team weitergeleitet, das sich bei Ihnen meldet."],
+    ["pt", "Recebemos o seu pedido e o enviamos para a equipe técnica, que vai responder a você até sexta-feira."],
+    ["ru", "Мы получили ваш запрос и передали его технической команде, которая свяжется с вами до пятницы."],
+    ["zh", "我们已经收到您的请求，并已转交给技术团队，他们会在周五之前与您联系。"],
+    ["ja", "ご依頼を受け付け、技術チームに転送しました。金曜日までにご連絡いたします。"],
+  ];
+
+  it("recognises each language the prompts are written in", () => {
+    for (const [lang, text] of SAMPLES) expect(detectLanguage(text), text).toBe(lang);
+  });
+
+  it("falls back to English for text it cannot place", () => {
+    expect(detectLanguage("12345 = SUM(A1:A9)")).toBe("en");
+    expect(detectLanguage("")).toBe("en");
+  });
+
+  it("asks in the passage's own language", () => {
+    const fr = buildMessages("shorten", SAMPLES[1]![1]);
+    expect(fr[0]!.content).toBe(PROMPTS.fr.system.shorten);
+    expect(fr[1]!.content.startsWith(PROMPTS.fr.ask.shorten!)).toBe(true);
+    expect(buildMessages("elaborate", SAMPLES[7]![1])[1]!.content.startsWith(PROMPTS.ja.ask.elaborate!)).toBe(true);
+  });
+
+  it("writes every language's prompts for every chat task", () => {
+    for (const p of Object.values(PROMPTS)) {
+      for (const task of ["elaborate", "shorten", "write"] as const) expect(p.system[task]).toBeTruthy();
+      for (const task of ["elaborate", "shorten"] as const) expect(p.ask[task]).toContain("<text>");
+    }
   });
 });
 
