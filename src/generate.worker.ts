@@ -3,7 +3,7 @@
 // token. Talks to generate.ts via messages. WebGPU with a WASM fallback, like the translator.
 import { pipeline, TextStreamer, env } from "@huggingface/transformers";
 import { post, onMessage, hasWebGpu, downloadProgress } from "./worker-common";
-import { buildMessages, capFor, type DtypeSpec, type GenTask } from "./gen-backend";
+import { buildMessages, capFor, cleanReply, genModel, type DtypeSpec, type GenTask } from "./gen-backend";
 
 env.allowLocalModels = false;
 
@@ -25,10 +25,23 @@ type Pipe = ((input: unknown, opts: Record<string, unknown>) => Promise<unknown>
 
 let cached: { key: string; fn: Pipe } | null = null;
 
+// Whether the GPU can run f16 shaders. Many phone GPUs cannot, and an f16 build fails on them.
+async function gpuHasF16(): Promise<boolean> {
+  try {
+    const gpu = (navigator as unknown as { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } }).gpu;
+    return !!(await gpu?.requestAdapter())?.features.has("shader-f16");
+  } catch {
+    return false;
+  }
+}
+
 async function getPipe(engine: "summarization" | "chat", model: string, device: "webgpu" | "wasm", dtypeSpec?: { webgpu: DtypeSpec; wasm: DtypeSpec }): Promise<Pipe> {
-  const key = `${engine}:${model}@${device}`;
+  const info = genModel(model);
+  let dtype: DtypeSpec = dtypeSpec ? dtypeSpec[device] : "q8";
+  if (device === "webgpu" && info?.webgpuNoF16 && !(await gpuHasF16())) dtype = info.webgpuNoF16;
+  const key = `${engine}:${model}@${device}:${JSON.stringify(dtype)}`;
   if (cached && cached.key === key) return cached.fn;
-  const options = { device, dtype: dtypeSpec ? dtypeSpec[device] : "q8", progress_callback: downloadProgress() };
+  const options = { device, dtype, progress_callback: downloadProgress() };
   const kind = engine === "summarization" ? "summarization" : "text-generation";
   const fn = (await pipeline(kind, model, options as never)) as unknown as Pipe;
   cached = { key, fn };
@@ -52,16 +65,17 @@ onMessage(async (e: MessageEvent) => {
   const msg = e.data as { type: string };
   if (msg.type !== "run") return;
   const run = e.data as RunMsg;
-  try {
-    let device: "webgpu" | "wasm" = run.device ?? ((await hasWebGpu()) ? "webgpu" : "wasm");
-    let pipe: Pipe;
-    try {
-      pipe = await getPipe(run.engine, run.model, device, run.dtype);
-    } catch (gpuErr) {
-      if (device !== "webgpu") throw gpuErr;
-      device = "wasm"; // GPU load failed (driver/dtype): finish on CPU
-      pipe = await getPipe(run.engine, run.model, device, run.dtype);
-    }
+
+  // A model that needs WebGPU hands a CPU run to its fallback, which brings its own dtypes.
+  const onCpu = (): { model: string; dtype?: { webgpu: DtypeSpec; wasm: DtypeSpec } } => {
+    const fallback = genModel(run.model)?.wasmFallback;
+    return fallback ? { model: fallback, dtype: genModel(fallback)?.dtype } : { model: run.model, dtype: run.dtype };
+  };
+
+  /** Load the model on one backend and generate the whole answer there. */
+  const runOn = async (device: "webgpu" | "wasm"): Promise<string> => {
+    const target = device === "wasm" ? onCpu() : { model: run.model, dtype: run.dtype };
+    const pipe = await getPipe(run.engine, target.model, device, target.dtype);
     post({ type: "device", device });
 
     // Stream generated text as cumulative snapshots so the UI just renders the latest.
@@ -86,12 +100,12 @@ onMessage(async (e: MessageEvent) => {
       }
     } else {
       const messages = buildMessages(run.task, run.input, run.system);
+      // No repetition penalty and no no-repeat n-grams: both count the prompt, so they forbid the
+      // very words a rewrite has to keep, and pushed every model tried into paraphrase or nonsense.
       const out = (await pipe(messages, {
         max_new_tokens: cap,
         streamer,
         do_sample: false,
-        repetition_penalty: 1.2,
-        no_repeat_ngram_size: 3,
       })) as { generated_text?: unknown }[] | { generated_text?: unknown };
       if (!acc) {
         // Fallback if streaming produced nothing: dig the assistant turn out of the result.
@@ -106,8 +120,25 @@ onMessage(async (e: MessageEvent) => {
         post({ type: "partial", text: acc });
       }
     }
+    return acc;
+  };
 
-    post({ type: "done", text: acc.trim() });
+  try {
+    const device: "webgpu" | "wasm" = run.device ?? ((await hasWebGpu()) ? "webgpu" : "wasm");
+    let text: string;
+    try {
+      text = await runOn(device);
+    } catch (gpuErr) {
+      if (device !== "webgpu") throw gpuErr;
+      // The GPU failed, loading or part way through (a phone GPU can load a model and then lose
+      // its buffers on the first run): drop what streamed and do the whole task on the CPU.
+      console.warn("[localml] WebGPU generation failed, finishing on the CPU", gpuErr);
+      cached = null;
+      post({ type: "partial", text: "" });
+      text = await runOn("wasm");
+    }
+    // Only the answer belongs in the document, not the wrapping a small model adds around it.
+    post({ type: "done", text: run.engine === "chat" ? cleanReply(text) : text.trim() });
   } catch (err) {
     post({ type: "error", message: err instanceof Error ? err.message : String(err) });
   }
