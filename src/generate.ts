@@ -40,6 +40,23 @@ export interface GenerateRun {
   done: Promise<{ text: string; stopped: boolean }>;
 }
 
+/**
+ * Whether this device runs the chat tasks (elaborate, shorten, write) well enough to offer them.
+ * Their model needs a GPU with f16 shaders; without one they fall back to a model small enough to
+ * run anywhere, which in testing refused, rambled or answered the text instead of rewriting it. A
+ * host hides those actions where this is false. Translation and speech use their own models and
+ * are not affected.
+ */
+export async function chatTasksAvailable(): Promise<boolean> {
+  if (!genModel(TASK_MODEL.shorten)?.needsF16) return true;
+  try {
+    const gpu = (globalThis.navigator as unknown as { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } } | undefined)?.gpu;
+    return !!(await gpu?.requestAdapter())?.features.has("shader-f16");
+  } catch {
+    return false;
+  }
+}
+
 /** Run one assist task over `input` (selected text, or the instruction for "write"). */
 export function runGenerate(input: string, opts: GenerateOptions, cb: GenerateCallbacks = {}): GenerateRun {
   const model = opts.model ?? TASK_MODEL[opts.task];
