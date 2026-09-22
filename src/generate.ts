@@ -2,6 +2,7 @@
 // Spawns the lazy worker, streams cumulative output text and download progress, and resolves
 // with the final text. A run can be cancelled (drops the worker). Mirrors runTranslate.
 import { genModel, TASK_MODEL, type GenTask, type GenProgress } from "./gen-backend";
+import { afterConsent, MODEL_HOSTS } from "./consent";
 
 export {
   GEN_MODELS,
@@ -59,6 +60,16 @@ export async function chatTasksAvailable(): Promise<boolean> {
 
 /** Run one assist task over `input` (selected text, or the instruction for "write"). */
 export function runGenerate(input: string, opts: GenerateOptions, cb: GenerateCallbacks = {}): GenerateRun {
+  const info = genModel(opts.model ?? TASK_MODEL[opts.task]);
+  const run = afterConsent(
+    { feature: "generate", hosts: MODEL_HOSTS, sizeMb: info?.sizeMb, label: info?.label },
+    async () => ({ text: "", stopped: true }),
+    () => startGenerate(input, opts, cb),
+  );
+  return { cancel: run.cancel, done: run.done };
+}
+
+function startGenerate(input: string, opts: GenerateOptions, cb: GenerateCallbacks): GenerateRun {
   const model = opts.model ?? TASK_MODEL[opts.task];
   const info = genModel(model);
   const engine = info?.engine ?? "chat";

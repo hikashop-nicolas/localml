@@ -3,6 +3,10 @@
 // way the translation models download from a CDN. So this is just a thin driver: it creates
 // a worker, streams progress, recognizes one image and tears the worker down.
 import { createWorker, type ImageLike } from "tesseract.js";
+import { afterConsent } from "./consent";
+
+/** Tesseract fetches its engine and language data from this CDN on first use. */
+const OCR_HOSTS = ["cdn.jsdelivr.net"];
 
 export interface OcrResult {
   text: string;
@@ -26,6 +30,16 @@ export interface OcrRun {
 
 // Recognize text in a single image. Returns a cancellable run.
 export function runOcr(image: ImageLike, opts: OcrOptions = {}): OcrRun {
+  // Engine about 3 MB plus one language's data, a few MB more.
+  const run = afterConsent<OcrRun, OcrResult>(
+    { feature: "ocr", hosts: OCR_HOSTS, sizeMb: 10, label: "Tesseract" },
+    () => Promise.reject(new Error("cancelled")), // what a cancel already produces
+    () => startOcr(image, opts),
+  );
+  return { done: run.done, cancel: run.cancel };
+}
+
+function startOcr(image: ImageLike, opts: OcrOptions): OcrRun {
   const lang = opts.lang && opts.lang.trim() ? opts.lang.trim() : "eng";
   let cancelled = false;
   let terminate: (() => void) | null = null;

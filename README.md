@@ -45,6 +45,21 @@ await run.done;      // { stopped }
 // run.pause() / run.resume() / run.cancel()
 ```
 
+## Asking before a download
+
+Every model and engine downloads on first use. A host can ask the user first by installing one
+handler; each run waits for it, and a refusal ends the run the way a cancel does:
+
+```ts
+import { setRemoteConsentHandler } from "localml/consent";
+
+setRemoteConsentHandler(async ({ feature, hosts, sizeMb, label }) => {
+  return confirm(`${feature} needs ${label} (~${sizeMb} MB) from ${hosts.join(", ")}. Download it?`);
+});
+```
+
+With no handler installed, runs start straight away.
+
 ## Develop
 
 ```bash

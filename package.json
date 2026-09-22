@@ -16,6 +16,10 @@
     "./generate": {
       "types": "./dist/generate.d.ts",
       "import": "./dist/generate.js"
+    },
+    "./consent": {
+      "types": "./dist/consent.d.ts",
+      "import": "./dist/consent.js"
     }
   },
   "files": [

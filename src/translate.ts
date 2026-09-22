@@ -3,6 +3,7 @@
 // per-batch results and progress, and resolves when the run finishes. The run can be paused,
 // resumed and stopped so the editor can drive it as a live background job.
 import { translateModel, mtLangCode, type TranscribeProgress } from "./backend";
+import { afterConsent, MODEL_HOSTS } from "./consent";
 
 // Re-export the catalog so `localml/translate` is a single, complete entry point: consumers
 // build language/model pickers from these without importing internal paths.
@@ -41,6 +42,21 @@ export interface TranslateCallbacks {
 }
 
 export function runTranslate(texts: string[], opts: TranslateOptions, cb: TranslateCallbacks = {}): TranslateRun {
+  const info = translateModel(opts.model);
+  const run = afterConsent(
+    { feature: "translate", hosts: MODEL_HOSTS, sizeMb: info?.sizeMb, label: info?.label ?? opts.model },
+    async () => ({ stopped: true }),
+    () => startTranslate(texts, opts, cb),
+  );
+  return {
+    cancel: run.cancel,
+    pause: () => run.current()?.pause(),
+    resume: () => run.current()?.resume(),
+    done: run.done,
+  };
+}
+
+function startTranslate(texts: string[], opts: TranslateOptions, cb: TranslateCallbacks): TranslateRun {
   const info = translateModel(opts.model);
   const scheme = info?.scheme ?? "iso";
   const worker = new Worker(new URL("./translate.worker.ts", import.meta.url), { type: "module" });
