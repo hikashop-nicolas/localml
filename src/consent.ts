@@ -65,5 +65,6 @@ export function afterConsent<R extends { done: Promise<T>; cancel(): void }, T>(
   };
 }
 
-/** Where the models come from (transformers.js default hub). */
-export const MODEL_HOSTS = ["huggingface.co"];
+/** Where the model-based features fetch from on first use: the model from the Hugging Face hub,
+ *  and the onnxruntime engine files transformers.js loads from jsDelivr (measured, not assumed). */
+export const MODEL_HOSTS = ["huggingface.co", "cdn.jsdelivr.net"];
