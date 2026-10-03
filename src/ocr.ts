@@ -1,9 +1,11 @@
 // On-device OCR via Tesseract.js. Tesseract runs its own WebAssembly worker internally and
-// fetches its core + language data from a CDN on first use (then browser-cached), the same
-// way the translation models download from a CDN. So this is just a thin driver: it creates
+// fetches its core + language data from a CDN on first use (then browser-cached; the core only
+// when the host has not packaged it, see ocr-paths), the same way the translation models
+// download from a CDN. So this is just a thin driver: it creates
 // a worker, streams progress, recognizes one image and tears the worker down.
 import { createWorker, type ImageLike } from "tesseract.js";
 import { afterConsent } from "./consent";
+import { ocrEnginePaths } from "./ocr-paths";
 
 /** Tesseract fetches its engine and language data from this CDN on first use. */
 const OCR_HOSTS = ["cdn.jsdelivr.net"];
@@ -46,6 +48,8 @@ function startOcr(image: ImageLike, opts: OcrOptions): OcrRun {
 
   const done = (async (): Promise<OcrResult> => {
     const worker = await createWorker(lang, 1, {
+      // Empty unless the host packages the engine; tesseract.js then uses the CDN.
+      ...ocrEnginePaths(),
       logger: (m: { status?: string; progress?: number }) => {
         const ratio = typeof m.progress === "number" ? m.progress : 0;
         const stage: OcrProgress["stage"] = m.status?.includes("recogniz") ? "recognize" : "load";

@@ -17,6 +17,10 @@
       "types": "./dist/generate.d.ts",
       "import": "./dist/generate.js"
     },
+    "./ocr-paths": {
+      "types": "./dist/ocr-paths.d.ts",
+      "import": "./dist/ocr-paths.js"
+    },
     "./consent": {
       "types": "./dist/consent.d.ts",
       "import": "./dist/consent.js"
