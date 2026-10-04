@@ -39,7 +39,7 @@
     "prepare": "tsc -p tsconfig.json && node scripts/fix-worker-urls.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.2.0",
+    "@huggingface/transformers": "^4.3.0",
     "tesseract.js": "^6.0.0"
   },
   "devDependencies": {
