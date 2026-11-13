@@ -19,10 +19,10 @@ describe("fetchModelFiles", () => {
     setRemoteConsentHandler((req) => (asked.push(req), true));
     vi.stubGlobal("fetch", async (url: string) => new Response(url.endsWith("a.onnx") ? new Uint8Array([1, 2, 3]) : new Uint8Array([4, 5])));
     const seen: number[] = [];
-    const got = await fetchModelFiles({ feature: "scan", label: "oemer", repo: "me/models", files, onProgress: (n) => seen.push(n) });
+    const got = await fetchModelFiles({ feature: "scan", label: "oemer", repo: "me/models", files, alsoFrom: ["cdn.jsdelivr.net"], onProgress: (n) => seen.push(n) });
     expect([...got.get("a.onnx")!]).toEqual([1, 2, 3]);
     expect([...got.get("b.json")!]).toEqual([4, 5]);
-    expect(asked).toEqual([{ feature: "scan", hosts: ["huggingface.co"], sizeMb: 5e-6, label: "oemer" }]);
+    expect(asked).toEqual([{ feature: "scan", hosts: ["huggingface.co", "cdn.jsdelivr.net"], sizeMb: 5e-6, label: "oemer" }]);
     expect(seen.at(-1)).toBe(5);
   });
 

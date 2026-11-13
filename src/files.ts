@@ -18,6 +18,8 @@ export interface ModelFilesRequest {
   signal?: AbortSignal;
   /** Cache Storage name; one cache serves every feature. */
   cacheName?: string;
+  /** Other hosts the feature downloads from (an engine), named in the same question. */
+  alsoFrom?: string[];
 }
 
 export const MODEL_FILES_HOST = "huggingface.co";
@@ -51,7 +53,7 @@ export async function fetchModelFiles(req: ModelFilesRequest): Promise<Map<strin
   }
   if (!missing.length) return out;
   const total = missing.reduce((s, i) => s + (req.files[i].bytes ?? 0), 0);
-  const ok = await requestRemote({ feature: req.feature, hosts: [MODEL_FILES_HOST], sizeMb: total ? total / 1e6 : undefined, label: req.label });
+  const ok = await requestRemote({ feature: req.feature, hosts: [MODEL_FILES_HOST, ...(req.alsoFrom ?? [])], sizeMb: total ? total / 1e6 : undefined, label: req.label });
   if (!ok) throw new ModelFilesDeclined();
   let loaded = 0;
   for (const i of missing) {
