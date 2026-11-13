@@ -24,6 +24,10 @@
     "./consent": {
       "types": "./dist/consent.d.ts",
       "import": "./dist/consent.js"
+    },
+    "./files": {
+      "types": "./dist/files.d.ts",
+      "import": "./dist/files.js"
     }
   },
   "files": [

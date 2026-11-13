@@ -60,6 +60,26 @@ setRemoteConsentHandler(async ({ feature, hosts, sizeMb, label }) => {
 
 With no handler installed, runs start straight away.
 
+### Model files for libraries that run their own models
+
+`localml/files` fetches raw model files (ONNX graphs, JSON weights) from a Hugging Face
+repository through the same consent handler, with progress, and keeps them in Cache Storage:
+
+```ts
+import { fetchModelFiles } from "localml/files";
+
+const files = await fetchModelFiles({
+  feature: "scan",
+  label: "oemer",
+  repo: "owner/models",
+  files: [{ name: "model.onnx", bytes: 38_448_467 }],
+  onProgress: (loaded, total) => console.log(loaded, total),
+});
+const model = files.get("model.onnx"); // Uint8Array
+```
+
+Cached files are returned without asking; a refusal throws `ModelFilesDeclined`.
+
 ## Develop
 
 ```bash

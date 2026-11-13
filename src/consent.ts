@@ -6,7 +6,7 @@
 // The handler lives on globalThis rather than in a module variable: a host and the libraries it
 // embeds can end up with two copies of this module, and they must still share one answer.
 
-export type RemoteFeature = "ocr" | "translate" | "generate" | "transcribe";
+export type RemoteFeature = "ocr" | "translate" | "generate" | "transcribe" | "scan";
 
 export interface RemoteRequest {
   feature: RemoteFeature;
